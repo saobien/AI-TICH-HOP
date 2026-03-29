@@ -1,21 +1,33 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { prompt } = req.body;
-
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const { prompt, apiKey } = req.body;
+
+    // ✅ Check API key
+    if (!apiKey || apiKey.trim() === "") {
+      return res.status(400).json({
+        error: "Thiếu API key",
+      });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-pro",
+    });
 
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = await result.response;
+    const text = response.text();
 
-    res.status(200).json({ text });
+    return res.status(200).json({ text });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("🔥 GEMINI ERROR:", err);
+
+    return res.status(500).json({
+      error: err.message || "Lỗi server",
+    });
   }
 }

@@ -73,18 +73,32 @@ export default function App() {
     setError('');
     setResultHtml('');
 
-    try {
-      const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
-        subject,
-        grade,
-        htmlContent: htmlContent
-      });
-      setResultHtml(integratedHtml || '');
-    } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra trong quá trình xử lý.');
-    } finally {
-      setIsProcessing(false);
-    }
+	try {
+	  setError('');
+	  setResultHtml('');
+
+	  if (!apiKey) {
+		throw new Error("Vui lòng nhập API key");
+	  }
+
+	  const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
+		subject,
+		grade,
+		htmlContent
+	  });
+
+	  if (!integratedHtml) {
+		throw new Error("AI không trả dữ liệu");
+	  }
+
+	  setResultHtml(integratedHtml);
+
+	} catch (err: any) {
+	  console.error(err);
+	  setError(err.message || "Có lỗi xảy ra");
+	} finally {
+	  setIsProcessing(false);
+	}
   };
 
   const handleDownload = () => {
