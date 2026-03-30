@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 
     // ✅ FIX 2: Thêm timeout (30 giây) vì free tier có thể chậm
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout: Gemini mất quá lâu để trả lời (>30s). Thử lại sau.")), 30000)
+      setTimeout(() => reject(new Error("Timeout: Gemini mất quá lâu để trả lời (>200s). Thử lại sau.")), 200000)
     );
 
     const result = await Promise.race([
