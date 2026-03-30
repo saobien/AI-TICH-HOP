@@ -1,5 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+export const config = {
+  runtime: "nodejs",
+};
 export default async function handler(req, res) {
   try {
     const { prompt, apiKey } = req.body;
@@ -21,7 +24,7 @@ export default async function handler(req, res) {
     // ✅ Validation: Limit prompt length for free tier
     if (prompt.length > 30000) {
       return res.status(400).json({
-        error: "Prompt quá dài (tối đa 10,000 ký tự). Hiện tại: " + prompt.length + " ký tự",
+        error: "Prompt quá dài (tối đa 30,000 ký tự). Hiện tại: " + prompt.length + " ký tự",
       });
     }
 
