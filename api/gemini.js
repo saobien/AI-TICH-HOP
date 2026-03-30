@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     }
 
     // ✅ Validation: Limit prompt length for free tier
-    if (prompt.length > 10000) {
+    if (prompt.length > 30000) {
       return res.status(400).json({
         error: "Prompt quá dài (tối đa 10,000 ký tự). Hiện tại: " + prompt.length + " ký tự",
       });
