@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
     // ✅ FIX 1: Dùng gemini-2.5-flash cho free tier (tốt nhất hiện nay)
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       // Fallback: nếu lỗi, thử gemini-2.5-flash-lite
     });
 
