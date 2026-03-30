@@ -13,13 +13,21 @@ export default async function handler(req, res) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
+    // ✅ FIX 1: Đổi sang model còn hoạt động (gemini-pro đã bị khai tử)
     const model = genAI.getGenerativeModel({
-      model: "gemini-pro",
+      model: "gemini-1.5-flash",
     });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
+    let text = response.text();
+
+    // ✅ FIX 2: Xóa markdown fences nếu Gemini trả về ```html ... ```
+    text = text
+      .replace(/^```html\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
 
     return res.status(200).json({ text });
 

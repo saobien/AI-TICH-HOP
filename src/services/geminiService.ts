@@ -10,6 +10,7 @@ export async function askGemini(prompt: string) {
   const data = await res.json();
   return data.text;
 }
+
 export async function integrateAIIntoLessonPlan(
   apiKey: string,
   data: {
@@ -19,18 +20,19 @@ export async function integrateAIIntoLessonPlan(
   }
 ) {
   const prompt = `
-Bạn là giáo viên. Hãy tích hợp AI vào kế hoạch bài dạy sau:
+Bạn là chuyên gia giáo dục. Hãy tích hợp nội dung ứng dụng AI vào kế hoạch bài dạy (KHBD) sau đây.
 
 Môn học: ${data.subject}
-Lớp: ${data.grade}
+Khối lớp: ${data.grade}
 
-Nội dung:
+Nội dung KHBD gốc (định dạng HTML):
 ${data.htmlContent}
 
-Yêu cầu:
-- Giữ nguyên HTML
-- Bổ sung hoạt động AI
-- Trình bày rõ ràng
+YÊU CẦU BẮT BUỘC:
+1. Giữ nguyên toàn bộ cấu trúc và nội dung HTML gốc.
+2. Chèn thêm các hoạt động, gợi ý sử dụng AI vào các phần phù hợp.
+3. Bọc TẤT CẢ nội dung AI thêm vào trong thẻ: <span class="ai-content" style="color:blue;font-weight:bold;">[Nội dung AI]</span>
+4. CHỈ TRẢ VỀ MÃ HTML THUẦN TÚY. TUYỆT ĐỐI KHÔNG dùng markdown, không có backtick, không có lời giải thích ngoài HTML.
 `;
 
   const res = await fetch("/api/gemini", {
