@@ -14,8 +14,8 @@ const SUBJECTS = [
 ];
 
 const MODELS = [
-  { id: 'gemini-3-flash-preview', name: 'Gemini 2.0 Flash (Nhanh)', selected: true },
-  { id: 'gemini-3.1-pro-preview', name: 'Gemini 1.5 Pro (Thông minh)', selected: false },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Nhanh)', selected: true },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Thông minh)', selected: false },
 ];
 
 export default function App() {
@@ -138,9 +138,13 @@ export default function App() {
     setResultHtml('');
 
     try {
-      const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
-        subject,
-        grade,
+      const sanitizedApiKey = apiKey.trim();
+      const sanitizedSubject = subject.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
+      const sanitizedGrade = grade.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
+      
+      const integratedHtml = await integrateAIIntoLessonPlan(sanitizedApiKey, {
+        subject: sanitizedSubject,
+        grade: sanitizedGrade,
         htmlContent: htmlContent
       }, selectedModel);
       setResultHtml(integratedHtml || '');
@@ -186,12 +190,17 @@ export default function App() {
         `;
         const fullHtml = `<html><head><meta charset="utf-8">${styles}</head><body>${docxHtml}</body></html>`;
 
+        // ASCII-safe title for the request body
+        const asciiSafeTitle = `Giao_an_AI_${sanitizedSubject}_${sanitizedGrade}`.replace(/[^\x00-\x7F]/g, "_");
+
         const docxResponse = await fetch('/api/generate-docx', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             html: fullHtml,
-            title: `Giao_an_AI_${subject}_${grade}`
+            title: asciiSafeTitle
           })
         });
 
