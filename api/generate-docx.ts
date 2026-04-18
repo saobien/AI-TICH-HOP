@@ -68,20 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pageNumber: true,
       font: 'Times New Roman',
       fontSize: 26, // 13pt
-      margins: {
-        top: 1134,    // 2.0 cm
-        bottom: 1134, // 2.0 cm
-        left: 1701,   // 3.0 cm
-        right: 850    // 1.5 cm
-      }
     });
 
-    const safeTitle = (title || 'lesson-plan').replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
+    const safeTitle = (title || 'lesson-plan').replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const encodedTitle = encodeURIComponent(title || 'lesson-plan');
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.docx"; filename*=UTF-8''${encodedTitle}.docx`);
-    return res.send(Buffer.from(fileBuffer));
+    res.setHeader('Content-Length', Buffer.byteLength(fileBuffer));
+    
+    return res.end(fileBuffer);
   } catch (error: any) {
     console.error('DOCX Generation Error:', error);
     return res.status(500).json({ error: `Không thể tạo file .docx: ${error.message || 'Lỗi không xác định'}` });

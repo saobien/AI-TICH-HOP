@@ -240,6 +240,19 @@ export default function App() {
         if (docxResponse.ok) {
           const blob = await docxResponse.blob();
           setDocxBlob(blob);
+        } else {
+          let errorInfo = `Lỗi hệ thống (${docxResponse.status})`;
+          try {
+            const errorJson = await docxResponse.json();
+            errorInfo = errorJson.error || errorInfo;
+          } catch (e) {
+            // If not JSON, try text
+            try {
+              const errorText = await docxResponse.text();
+              if (errorText) errorInfo = errorText.substring(0, 100);
+            } catch (e2) {}
+          }
+          throw new Error(`Tạo file Word thất bại: ${errorInfo}`);
         }
       }
     } catch (err: any) {
