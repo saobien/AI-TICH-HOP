@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import mammoth from 'mammoth';
 import { saveAs } from 'file-saver';
 import { cn } from './lib/utils';
-import { integrateAIIntoLessonPlan } from './services/geminiService';
 
 const GRADES = ['Lớp 1', 'Lớp 2', 'Lớp 3', 'Lớp 4', 'Lớp 5', 'Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9', 'Lớp 10', 'Lớp 11', 'Lớp 12'];
 const SUBJECTS = [
@@ -138,15 +137,36 @@ export default function App() {
     setResultHtml('');
 
     try {
-      const sanitizedApiKey = apiKey.trim();
-      const sanitizedSubject = subject.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
-      const sanitizedGrade = grade.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
+      // Aggressively sanitize API Key to be pure ASCII
+      const sanitizedApiKey = apiKey.trim().replace(/[^\x21-\x7E]/g, '');
       
-      const integratedHtml = await integrateAIIntoLessonPlan(sanitizedApiKey, {
-        subject: sanitizedSubject,
-        grade: sanitizedGrade,
-        htmlContent: htmlContent
-      }, selectedModel);
+      // Preserve Vietnamese for prompt, but ensure no "bleeding" into headers
+      const promptSubject = subject.trim();
+      const promptGrade = grade.trim();
+      
+      // Use server-side proxy to bypass client-side header issues on Vercel
+      const aiResponse = await fetch('/api/integrate-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          apiKey: sanitizedApiKey,
+          data: {
+            subject: promptSubject,
+            grade: promptGrade,
+            htmlContent: htmlContent
+          },
+          model: selectedModel
+        })
+      });
+
+      if (!aiResponse.ok) {
+        const errorData = await aiResponse.json();
+        throw new Error(errorData.error || 'Lỗi khi tích hợp AI');
+      }
+
+      const integratedHtml = await aiResponse.text();
       setResultHtml(integratedHtml || '');
 
       // Pre-generate DOCX immediately after processing
@@ -190,8 +210,10 @@ export default function App() {
         `;
         const fullHtml = `<html><head><meta charset="utf-8">${styles}</head><body>${docxHtml}</body></html>`;
 
-        // ASCII-safe title for the request body
-        const asciiSafeTitle = `Giao_an_AI_${sanitizedSubject}_${sanitizedGrade}`.replace(/[^\x00-\x7F]/g, "_");
+        // ASCII-safe title for the request body (Server-side also handles this but client should be safe too)
+        const sanitizedSubjectForTitle = promptSubject.replace(/[^\w\s]/g, '').replace(/\s+/g, '_');
+        const sanitizedGradeForTitle = promptGrade.replace(/[^\w\s]/g, '').replace(/\s+/g, '_');
+        const asciiSafeTitle = `Giao_an_AI_${sanitizedSubjectForTitle}_${sanitizedGradeForTitle}`.replace(/[^\x00-\x7F]/g, "_");
 
         const docxResponse = await fetch('/api/generate-docx', {
           method: 'POST',
@@ -255,7 +277,7 @@ export default function App() {
             >
               <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
                 <img 
-                  src="/image/logovh.png" 
+                  src="/image/logovh.jpg" 
                   alt="Logo Trường THPT Văn Hiến" 
                   className="w-full h-full object-contain"
                   onError={(e) => {
