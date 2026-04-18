@@ -64,11 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    const safeTitle = (title || 'lesson-plan').replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
-    const encodedTitle = encodeURIComponent(title || 'lesson-plan');
-    
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.docx"; filename*=UTF-8''${encodedTitle}.docx`);
+    res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(title || 'lesson-plan')}.docx`);
     return res.send(Buffer.from(fileBuffer));
   } catch (error: any) {
     console.error('DOCX Generation Error:', error);
