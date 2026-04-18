@@ -162,8 +162,14 @@ export default function App() {
       });
 
       if (!aiResponse.ok) {
-        const errorData = await aiResponse.json();
-        throw new Error(errorData.error || 'Lỗi khi tích hợp AI');
+        let errorMessage = 'Lỗi không xác định';
+        try {
+          const errorData = await aiResponse.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Lỗi hệ thống (${aiResponse.status}): ${aiResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const integratedHtml = await aiResponse.text();
