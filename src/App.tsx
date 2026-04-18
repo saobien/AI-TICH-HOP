@@ -137,8 +137,14 @@ export default function App() {
     setResultHtml('');
 
     try {
-      // Just trim the key, avoid aggressive sanitization that might mangle it
-      const sanitizedApiKey = apiKey.trim();
+      // Strictly sanitize API Key to avoid any non-ASCII characters that cause ByteString errors in headers/SDKs
+      const sanitizedApiKey = apiKey.trim().replace(/[^\x21-\x7E]/g, '');
+      
+      if (sanitizedApiKey.length !== apiKey.trim().length) {
+        setError('API Key chứa ký tự không hợp lệ. Vui lòng kiểm tra lại (không được có dấu tiếng Việt hoặc ký tự đặc biệt lạ).');
+        setIsProcessing(false);
+        return;
+      }
       
       const promptSubject = subject.trim();
       const promptGrade = grade.trim();
@@ -247,7 +253,11 @@ export default function App() {
 
   const handleDownload = () => {
     if (docxBlob) {
-      saveAs(docxBlob, `Giao_an_AI_${subject}_${grade}.docx`);
+      // Use a slightly safer filename for the browser's save dialog
+      const safeSubject = subject.replace(/[^\w\s]/g, '').trim() || 'Mon_hoc';
+      const safeGrade = grade.replace(/[^\w\s]/g, '').trim() || 'Lop';
+      const filename = `Giao_an_AI_${safeSubject}_${safeGrade}.docx`.replace(/\s+/g, '_');
+      saveAs(docxBlob, filename);
     } else {
       setError('File chưa sẵn sàng hoặc có lỗi khi tạo. Vui lòng bấm "Thiết kế giáo án AI" để tạo lại.');
     }
@@ -571,10 +581,11 @@ export default function App() {
           </div>
 
           {/* Footer */}
-        <footer className="mt-16 pb-8 text-center border-t border-emerald-100 pt-8">
+        <footer className="mt-16 pb-8 text-center border-t border-emerald-100 pt-8 space-y-2">
           <p className="text-sm font-medium text-emerald-900/40 flex items-center justify-center gap-2">
-            Powered by <span className="font-bold text-emerald-600">Gemini</span>
+            © 2026 Trường THPT Văn Hiến. Powered by <span className="font-bold text-emerald-600">Gemini AI</span>
           </p>
+          <p className="text-[10px] text-emerald-900/20 font-mono">Phiên bản 2.1.0 - ServerProxy Mode</p>
         </footer>
       </div>
     </div>
