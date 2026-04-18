@@ -137,10 +137,9 @@ export default function App() {
     setResultHtml('');
 
     try {
-      // Aggressively sanitize API Key to be pure ASCII
-      const sanitizedApiKey = apiKey.trim().replace(/[^\x21-\x7E]/g, '');
+      // Just trim the key, avoid aggressive sanitization that might mangle it
+      const sanitizedApiKey = apiKey.trim();
       
-      // Preserve Vietnamese for prompt, but ensure no "bleeding" into headers
       const promptSubject = subject.trim();
       const promptGrade = grade.trim();
       
@@ -283,7 +282,7 @@ export default function App() {
             >
               <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
                 <img 
-                  src="/image/logovh.jpg" 
+                  src="/image/logovh.png" 
                   alt="Logo Trường THPT Văn Hiến" 
                   className="w-full h-full object-contain"
                   onError={(e) => {

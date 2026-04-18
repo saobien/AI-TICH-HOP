@@ -81,8 +81,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(resultHtml);
   } catch (error: any) {
     console.error('Gemini API Error:', error);
+    const errorMessage = error.message || '';
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ 
+        error: 'API Key không hợp lệ. Vui lòng kiểm tra lại mã API Key bạn đã nhập trong phần Cấu hình.' 
+      });
+    }
     return res.status(500).json({ 
-      error: error.message || 'Internal Server Error',
+      error: errorMessage || 'Internal Server Error',
       details: error
     });
   }
