@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Download, Key, Loader2, CheckCircle2, AlertCircle, Trash2, Sparkles } from 'lucide-react';
+import { Upload, FileText, Download, Key, Loader2, CheckCircle2, AlertCircle, Trash2, Sparkles, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import mammoth from 'mammoth';
 import { saveAs } from 'file-saver';
@@ -13,47 +13,111 @@ const SUBJECTS = [
   'Công nghệ', 'Âm nhạc', 'Mĩ thuật', 'Giáo dục thể chất', 'Hoạt động trải nghiệm, hướng nghiệp'
 ];
 
+const MODELS = [
+  { id: 'gemini-3-flash-preview', name: 'Gemini 2.0 Flash (Nhanh)', selected: true },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 1.5 Pro (Thông minh)', selected: false },
+];
+
 export default function App() {
   const [apiKey, setApiKey] = useState('');
+  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [subject, setSubject] = useState('');
   const [grade, setGrade] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [htmlContent, setHtmlContent] = useState('');
+  const [imageMap, setImageMap] = useState<{[key: string]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultHtml, setResultHtml] = useState('');
+  const [docxBlob, setDocxBlob] = useState<Blob | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const savedKey = localStorage.getItem('GEMINI_API_KEY');
     if (savedKey) setApiKey(savedKey);
+    const savedModel = localStorage.getItem('GEMINI_MODEL');
+    if (savedModel) setSelectedModel(savedModel);
   }, []);
 
-  const handleSaveKey = () => {
+    // Conversion for preview: replace placeholders with real dataUrls
+    const renderPreviewHtml = (html: string) => {
+      let preview = html;
+      Object.entries(imageMap).forEach(([id, dataUrl]) => {
+        const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedId, 'gi');
+        preview = preview.replace(regex, dataUrl as string);
+      });
+      return preview;
+    };
+
+  const handleSaveConfig = () => {
     localStorage.setItem('GEMINI_API_KEY', apiKey);
-    alert('Đã lưu API Key vào trình duyệt!');
+    localStorage.setItem('GEMINI_MODEL', selectedModel);
+    alert('Đã lưu cấu hình!');
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith('.docx')) {
-      setError('Vui lòng chọn file định dạng .docx');
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'docx') {
+      setError('Hỗ trợ duy nhất định dạng .docx (Word 2007 trở lên)');
       return;
     }
 
     setFile(selectedFile);
     setError('');
+    setImageMap({});
 
     const reader = new FileReader();
+    
     reader.onload = async (event) => {
       const arrayBuffer = event.target?.result as ArrayBuffer;
       try {
-        // Convert docx to HTML to preserve formatting for Gemini
-        const result = await mammoth.convertToHtml({ arrayBuffer });
+        let imageCounter = 0;
+        const currentImageMap: {[key: string]: string} = {};
+        const result = await mammoth.convertToHtml(
+          { arrayBuffer },
+          { 
+            ignoreEmptyParagraphs: false,
+            styleMap: [
+              "u => u",
+              "i => i",
+              "em => i",
+              "b => b",
+              "strong => b",
+              "strike => s",
+              "p[style-name='Section Title'] => h1:fresh",
+              "p[style-name='Subsection Title'] => h2:fresh",
+              "p[style-name='Normal'] => p:fresh",
+              "p[style-name='Title'] => h1:fresh",
+              "p[style-name='Subtitle'] => h2:fresh",
+              "p[style-name='Tiêu đề'] => h1:fresh",
+              "p[style-name='Tiêu đề 1'] => h1:fresh",
+              "p[style-name='Tiêu đề 2'] => h2:fresh",
+              "p[style-name='Tiêu đề 3'] => h3:fresh",
+              "p[style-name='Heading 1'] => h1:fresh",
+              "p[style-name='Heading 2'] => h2:fresh",
+              "p[style-name='Heading 3'] => h3:fresh",
+              "p[style-name='Heading 4'] => h4:fresh",
+              "p[style-name='Center'] => p.center:fresh",
+              "p[style-name='Centered'] => p.center:fresh",
+              "p[style-name='Quote'] => blockquote:fresh",
+            ],
+            convertImage: mammoth.images.imgElement((image: any) => {
+              return image.read("base64").then((imageBuffer: string) => {
+                const id = `[[RESERVED_IMG_CONTENT_${imageCounter++}]]`;
+                const dataUrl = `data:${image.contentType};base64,${imageBuffer}`;
+                currentImageMap[id] = dataUrl;
+                return { src: id };
+              });
+            })
+          }
+        );
+        setImageMap(currentImageMap);
         setHtmlContent(result.value);
       } catch (err) {
-        setError('Không thể đọc nội dung file Word.');
+        setError('Lỗi khi đọc file DOCX. Vui lòng kiểm tra lại file của bạn.');
       }
     };
     reader.readAsArrayBuffer(selectedFile);
@@ -65,7 +129,7 @@ export default function App() {
       return;
     }
     if (!subject || !grade || !htmlContent) {
-      setError('Vui lòng điền đầy đủ thông tin và tải file giáo án');
+      setError('Vui lòng điền đầy đủ thông tin và tải file');
       return;
     }
 
@@ -73,58 +137,84 @@ export default function App() {
     setError('');
     setResultHtml('');
 
-	try {
-	  setError('');
-	  setResultHtml('');
+    try {
+      const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
+        subject,
+        grade,
+        htmlContent: htmlContent
+      }, selectedModel);
+      setResultHtml(integratedHtml || '');
 
-	  if (!apiKey) {
-		throw new Error("Vui lòng nhập API key");
-	  }
+      // Pre-generate DOCX immediately after processing
+      if (integratedHtml) {
+        let docxHtml = integratedHtml;
+        Object.entries(imageMap).forEach(([id, dataUrl]) => {
+          const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(src=["'])?${escapedId}(["'])?`, 'gi');
+          docxHtml = docxHtml.replace(regex, (match, p1, p2) => {
+            if (p1 && p2) return `${p1}${dataUrl}${p2}`;
+            return dataUrl as string;
+          });
+        });
 
-	  const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
-		subject,
-		grade,
-		htmlContent
-	  });
+        const styles = `
+          <style>
+            @page { margin: 2cm 1.5cm 2cm 3cm; }
+            body { 
+              font-family: 'Times New Roman', serif; 
+              font-size: 13pt; 
+              line-height: 1.5; 
+              color: #000; 
+              text-align: justify; 
+            }
+            h1, h2, h3, h4 { color: #000; font-weight: bold; margin-top: 12pt; margin-bottom: 6pt; }
+            h1 { font-size: 16pt; text-transform: uppercase; text-align: center; }
+            h2 { font-size: 14pt; padding-bottom: 2pt; }
+            p { margin: 0 0 10pt 0; text-align: justify; }
+            table { border-collapse: collapse; width: 100%; margin: 12pt 0; border: 1pt solid black; }
+            td, th { padding: 8pt; vertical-align: top; font-size: 13pt; border: 1pt solid black; }
+            th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+            span[style*="color: blue"] { color: blue; font-weight: bold; }
+            b, strong { font-weight: bold; }
+            i, em { font-style: italic; }
+            u { text-decoration: underline; }
+            .center { text-align: center; }
+            .right { text-align: right; }
+            .justify { text-align: justify; }
+            img { max-width: 100%; height: auto; display: block; margin: 12pt auto; }
+          </style>
+        `;
+        const fullHtml = `<html><head><meta charset="utf-8">${styles}</head><body>${docxHtml}</body></html>`;
 
-	  if (!integratedHtml) {
-		throw new Error("AI không trả dữ liệu");
-	  }
+        const docxResponse = await fetch('/api/generate-docx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            html: fullHtml,
+            title: `Giao_an_AI_${subject}_${grade}`
+          })
+        });
 
-	  setResultHtml(integratedHtml);
-
-	} catch (err: any) {
-	  console.error(err);
-	  setError(err.message || "Có lỗi xảy ra");
-	} finally {
-	  setIsProcessing(false);
-	}
+        if (docxResponse.ok) {
+          const blob = await docxResponse.blob();
+          setDocxBlob(blob);
+        }
+      }
+    } catch (err: any) {
+      console.error('AI Integration Error:', err);
+      const errorMessage = err.message || (typeof err === 'object' ? JSON.stringify(err) : 'Có lỗi xảy ra.');
+      setError(`Lỗi: ${errorMessage}`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDownload = () => {
-    if (!resultHtml) return;
-
-    // Use a trick: Word can open HTML files and preserve formatting.
-    // We wrap the HTML in a full document structure with the correct MIME type.
-    const header = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head><meta charset='utf-8'><title>Export</title>
-      <style>
-        body { font-family: 'Times New Roman', serif; }
-        table { border-collapse: collapse; width: 100%; }
-        table, th, td { border: 1px solid black; padding: 5px; }
-        .ai-content { color: blue; }
-      </style>
-      </head><body>
-    `;
-    const footer = "</body></html>";
-    const source = header + resultHtml + footer;
-
-    const blob = new Blob(['\ufeff', source], {
-      type: 'application/msword'
-    });
-
-    saveAs(blob, `Giao_an_AI_${subject}_${grade}.doc`);
+    if (docxBlob) {
+      saveAs(docxBlob, `Giao_an_AI_${subject}_${grade}.docx`);
+    } else {
+      setError('File chưa sẵn sàng hoặc có lỗi khi tạo. Vui lòng bấm "Thiết kế giáo án AI" để tạo lại.');
+    }
   };
 
   return (
@@ -135,9 +225,25 @@ export default function App() {
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="inline-block p-3 bg-emerald-100 rounded-2xl mb-4"
+            className="inline-block p-4 bg-white rounded-full mb-6 shadow-lg shadow-emerald-500/10 border border-emerald-50"
           >
-            <Sparkles className="w-8 h-8 text-emerald-600" />
+            <div className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center">
+              <img 
+                src="/image/logovh.jpg" 
+                alt="Logo Trường THPT Văn Hiến" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'w-full h-full bg-emerald-100 rounded-full flex items-center justify-center';
+                    fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>';
+                    parent.appendChild(fallback);
+                  }
+                }}
+              />
+            </div>
           </motion.div>
           <motion.h1 
             initial={{ opacity: 0, y: -20 }}
@@ -160,27 +266,46 @@ export default function App() {
           {/* Sidebar - Config */}
           <aside className="lg:col-span-4 space-y-6">
             <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-emerald-900/5 border border-emerald-100">
-              <h2 className="flex items-center gap-2 text-xl font-bold mb-6 text-emerald-800">
-                <Key className="w-6 h-6 text-emerald-500" /> Cấu hình
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-emerald-800">
+                  <Settings2 className="w-6 h-6 text-emerald-500" /> Cấu hình
+                </h2>
+                <button 
+                  onClick={handleSaveConfig}
+                  className="bg-emerald-500 text-white p-2 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                </button>
+              </div>
+              
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Gemini API Key</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Nhập API Key..."
-                      className="flex-1 bg-emerald-50 border-2 border-transparent rounded-2xl px-5 py-3 text-sm focus:border-emerald-500 focus:bg-white transition-all outline-none"
-                    />
-                    <button 
-                      onClick={handleSaveKey}
-                      title="Lưu Key"
-                      className="bg-emerald-500 text-white p-3 rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-                    >
-                      <CheckCircle2 className="w-6 h-6" />
-                    </button>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Nhập API Key..."
+                    className="w-full bg-emerald-50 border-2 border-transparent rounded-2xl px-5 py-3 text-sm focus:border-emerald-500 focus:bg-white transition-all outline-none"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Mô hình AI</label>
+                  <div className="space-y-2">
+                    {MODELS.map(m => (
+                      <label key={m.id} className="flex items-center gap-3 p-3 bg-emerald-50/50 rounded-xl cursor-pointer hover:bg-emerald-50 transition-colors border-2 border-transparent has-[:checked]:border-emerald-500">
+                        <input 
+                          type="radio" 
+                          name="model" 
+                          value={m.id} 
+                          checked={selectedModel === m.id}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 bg-emerald-100 border-emerald-300"
+                        />
+                        <span className="text-sm font-medium text-emerald-900">{m.name}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -223,19 +348,19 @@ export default function App() {
             <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-emerald-900/5 border border-emerald-100 text-center">
               {!file ? (
                 <div className="group border-4 border-dashed border-emerald-100 rounded-[2rem] p-16 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer relative overflow-hidden">
-                  <input
-                    type="file"
-                    accept=".docx"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="relative z-0">
-                    <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                      <Upload className="w-10 h-10 text-emerald-600" />
+                    <input
+                      type="file"
+                      accept=".docx"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="relative z-0">
+                      <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                        <Upload className="w-10 h-10 text-emerald-600" />
+                      </div>
+                      <p className="text-2xl font-black text-emerald-900">Tải lên tài liệu</p>
+                      <p className="text-emerald-600/60 mt-2 font-medium">Hỗ trợ duy nhất file Word (.docx)</p>
                     </div>
-                    <p className="text-2xl font-black text-emerald-900">Tải lên giáo án gốc</p>
-                    <p className="text-emerald-600/60 mt-2 font-medium">Hỗ trợ định dạng .docx (Word)</p>
-                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-between bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
@@ -249,8 +374,16 @@ export default function App() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => { setFile(null); setHtmlContent(''); }}
+                    onClick={() => { 
+                      setFile(null); 
+                      setHtmlContent(''); 
+                      setResultHtml(''); 
+                      setDocxBlob(null);
+                      setImageMap({});
+                      setError('');
+                    }}
                     className="bg-white text-red-500 hover:bg-red-50 p-3 rounded-2xl transition-all shadow-sm active:scale-90"
+                    title="Xóa tài liệu và giải phóng bộ nhớ"
                   >
                     <Trash2 className="w-6 h-6" />
                   </button>
@@ -281,6 +414,32 @@ export default function App() {
               </button>
             </section>
 
+            {/* Input Preview Area */}
+            <AnimatePresence>
+              {htmlContent && !resultHtml && (
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-white rounded-[2rem] p-10 shadow-xl shadow-emerald-900/5 border border-emerald-100"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-black text-emerald-900 uppercase tracking-tight">Nội dung gốc</h2>
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold bg-emerald-50 px-4 py-2 rounded-xl text-sm">
+                      <FileText className="w-4 h-4" /> 
+                      Phát hiện: Định dạng .docx
+                    </div>
+                  </div>
+                  <div className="relative bg-emerald-50/20 rounded-3xl border border-emerald-100 p-8 overflow-auto max-h-[400px]">
+                    <div 
+                      className="prose prose-emerald max-w-none prose-headings:text-emerald-900 prose-p:text-emerald-800"
+                      dangerouslySetInnerHTML={{ __html: renderPreviewHtml(htmlContent) }} 
+                    />
+                  </div>
+                </motion.section>
+              )}
+            </AnimatePresence>
+
             {/* Error Display */}
             <AnimatePresence>
               {error && (
@@ -307,20 +466,45 @@ export default function App() {
                   <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
                     <div>
                       <h2 className="text-2xl font-black text-emerald-900">Giáo án đã tích hợp</h2>
-                      <p className="text-emerald-600 font-medium">Nội dung AI được đánh dấu bằng <span className="text-blue-600 font-bold">màu xanh dương</span></p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-emerald-600 font-medium">Nội dung AI được đánh dấu bằng <span className="text-blue-600 font-bold">màu xanh dương</span></p>
+                        <p className="text-xs text-amber-600 font-semibold italic flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Lưu ý: Vui lòng rà soát kỹ để đảm bảo AI không bỏ sót nội dung gốc do giới hạn xử lý.
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={handleDownload}
                       className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
                     >
-                      <Download className="w-5 h-5" /> Tải về (.doc)
+                      <Download className="w-5 h-5" /> Tải về
                     </button>
                   </div>
                   
-                  <div className="relative bg-emerald-50/30 rounded-3xl border border-emerald-100 p-8 overflow-auto max-h-[600px]">
+                  <div className="relative bg-white rounded-3xl border border-emerald-100 p-8 overflow-auto max-h-[600px] shadow-inner shadow-emerald-900/5">
+                    <style>
+                      {`
+                        .word-preview {
+                          font-family: 'Times New Roman', serif;
+                          font-size: 13pt;
+                          line-height: 1.5;
+                          text-align: justify;
+                          color: #000;
+                        }
+                        .word-preview h1 { text-align: center; width: 100%; font-size: 16pt; text-transform: uppercase; margin-top: 12pt; }
+                        .word-preview h2 { font-size: 14pt; margin-top: 12pt; }
+                        .word-preview p { text-align: justify; margin-bottom: 10pt; }
+                        .word-preview .center { text-align: center; }
+                        .word-preview .right { text-align: right; }
+                        .word-preview .justify { text-align: justify; }
+                        .word-preview table { border-collapse: collapse; width: 100%; border: 1px solid black; }
+                        .word-preview td, .word-preview th { padding: 8px; border: 1px solid black; }
+                        .word-preview span[style*="color: blue"] { color: blue; font-weight: bold; }
+                      `}
+                    </style>
                     <div 
-                      className="prose prose-emerald max-w-none prose-headings:text-emerald-900 prose-p:text-emerald-800"
-                      dangerouslySetInnerHTML={{ __html: resultHtml }}
+                      className="prose prose-emerald max-w-none prose-headings:text-emerald-900 prose-p:text-emerald-800 word-preview"
+                      dangerouslySetInnerHTML={{ __html: renderPreviewHtml(resultHtml) }}
                     />
                   </div>
                 </motion.section>
