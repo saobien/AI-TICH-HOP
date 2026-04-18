@@ -138,9 +138,13 @@ export default function App() {
     setResultHtml('');
 
     try {
-      const integratedHtml = await integrateAIIntoLessonPlan(apiKey, {
-        subject,
-        grade,
+      const sanitizedApiKey = apiKey.trim();
+      const sanitizedSubject = subject.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
+      const sanitizedGrade = grade.replace(/[^\w\s\u00C0-\u1EF9]/g, '');
+      
+      const integratedHtml = await integrateAIIntoLessonPlan(sanitizedApiKey, {
+        subject: sanitizedSubject,
+        grade: sanitizedGrade,
         htmlContent: htmlContent
       }, selectedModel);
       setResultHtml(integratedHtml || '');
@@ -186,12 +190,17 @@ export default function App() {
         `;
         const fullHtml = `<html><head><meta charset="utf-8">${styles}</head><body>${docxHtml}</body></html>`;
 
+        // ASCII-safe title for the request body
+        const asciiSafeTitle = `Giao_an_AI_${sanitizedSubject}_${sanitizedGrade}`.replace(/[^\x00-\x7F]/g, "_");
+
         const docxResponse = await fetch('/api/generate-docx', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             html: fullHtml,
-            title: `Giao_an_AI_${subject}_${grade}`
+            title: asciiSafeTitle
           })
         });
 
@@ -218,136 +227,156 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0FDF4] font-sans text-[#064E3B] p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-[#F0FDF4] font-sans text-[#064E3B] p-4 md:p-8 lg:p-10">
+      <div className="max-w-7xl mx-auto h-full px-2 md:px-4">
+        {/* Header - Compact */}
         <header className="mb-12 text-center">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="inline-block p-4 bg-white rounded-full mb-6 shadow-lg shadow-emerald-500/10 border border-emerald-50"
-          >
-            <div className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center">
-              <img 
-                src="/image/logovh.jpg" 
-                alt="Logo Trường THPT Văn Hiến" 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const fallback = document.createElement('div');
-                    fallback.className = 'w-full h-full bg-emerald-100 rounded-full flex items-center justify-center';
-                    fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>';
-                    parent.appendChild(fallback);
-                  }
-                }}
-              />
-            </div>
-          </motion.div>
+          <div className="relative inline-block mb-4">
+            {/* Sunbeam / Rainbow Glow Effect */}
+            <motion.div
+              animate={{
+                rotate: 360,
+                scale: [1, 1.05, 1],
+              }}
+              transition={{
+                rotate: { duration: 10, repeat: Infinity, ease: "linear" },
+                scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+              }}
+              className="absolute inset-[-15px] opacity-40 blur-xl rounded-full"
+              style={{
+                background: 'conic-gradient(from 0deg, #10b981, #3b82f6, #8b5cf6, #ec4899, #f43f5e, #f59e0b, #10b981)'
+              }}
+            />
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative z-10 inline-block p-1.5 bg-white rounded-full shadow-md border border-emerald-50"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
+                <img 
+                  src="/image/logovh.png" 
+                  alt="Logo Trường THPT Văn Hiến" 
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      const fallback = document.createElement('div');
+                      fallback.className = 'w-full h-full bg-emerald-100 rounded-full flex items-center justify-center';
+                      fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>';
+                      parent.appendChild(fallback);
+                    }
+                  }}
+                />
+              </div>
+            </motion.div>
+          </div>
+
           <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-black text-emerald-900 mb-4 tracking-tight uppercase"
+            className="text-3xl md:text-4xl font-black text-emerald-900 mb-1 tracking-tight uppercase"
           >
             TÍCH HỢP AI VÀO <span className="text-emerald-600">KẾ HOẠCH BÀI DẠY</span>
           </motion.h1>
-          <div className="space-y-2">
-            <p className="text-lg font-medium text-emerald-800/80 max-w-2xl mx-auto">
-              Tự động tích hợp năng lực AI vào giáo án mẫu 5512, giữ nguyên định dạng và làm nổi bật nội dung mới.
+          <div className="space-y-0.5">
+            <p className="text-sm md:text-base font-medium text-emerald-800/80 max-w-2xl mx-auto">
+              Tự động tích hợp năng lực AI vào giáo án mẫu 5512, giữ nguyên định dạng.
             </p>
-            <p className="text-sm font-semibold text-emerald-600">
-              Hỗ trợ tích hợp AI vào KHBD bởi Trần Quốc Minh_GV Trường THPT Văn Hiến
+            <p className="text-[10px] md:text-xs font-semibold text-emerald-600/60">
+              Thiết kế bởi Trần Quốc Minh_GV Trường THPT Văn Hiến
             </p>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar - Config */}
-          <aside className="lg:col-span-4 space-y-6">
-            <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-emerald-900/5 border border-emerald-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-emerald-800">
-                  <Settings2 className="w-6 h-6 text-emerald-500" /> Cấu hình
-                </h2>
-                <button 
-                  onClick={handleSaveConfig}
-                  className="bg-emerald-500 text-white p-2 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                </button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 items-stretch">
+          {/* Column 1: Config */}
+          <section className="bg-white rounded-[1.5rem] p-6 shadow-xl shadow-emerald-900/5 border border-emerald-100 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-emerald-800">
+                <Settings2 className="w-5 h-5 text-emerald-500" /> Cấu hình
+              </h2>
+              <button 
+                onClick={handleSaveConfig}
+                className="bg-emerald-500 text-white p-1.5 rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-4 flex-grow">
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5 text-emerald-900/60 uppercase tracking-wider">Gemini API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Nhập API Key..."
+                  className="w-full bg-emerald-50 border-2 border-transparent rounded-xl px-4 py-2 text-xs focus:border-emerald-500 focus:bg-white transition-all outline-none"
+                />
               </div>
               
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Gemini API Key</label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Nhập API Key..."
-                    className="w-full bg-emerald-50 border-2 border-transparent rounded-2xl px-5 py-3 text-sm focus:border-emerald-500 focus:bg-white transition-all outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Mô hình AI</label>
-                  <div className="space-y-2">
-                    {MODELS.map(m => (
-                      <label key={m.id} className="flex items-center gap-3 p-3 bg-emerald-50/50 rounded-xl cursor-pointer hover:bg-emerald-50 transition-colors border-2 border-transparent has-[:checked]:border-emerald-500">
-                        <input 
-                          type="radio" 
-                          name="model" 
-                          value={m.id} 
-                          checked={selectedModel === m.id}
-                          onChange={(e) => setSelectedModel(e.target.value)}
-                          className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 bg-emerald-100 border-emerald-300"
-                        />
-                        <span className="text-sm font-medium text-emerald-900">{m.name}</span>
-                      </label>
-                    ))}
-                  </div>
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5 text-emerald-900/60 uppercase tracking-wider">Mô hình AI</label>
+                <div className="space-y-1.5">
+                  {MODELS.map(m => (
+                    <label key={m.id} className="flex items-center gap-2 p-2 bg-emerald-50/50 rounded-lg cursor-pointer hover:bg-emerald-50 transition-colors border-2 border-transparent has-[:checked]:border-emerald-500">
+                      <input 
+                        type="radio" 
+                        name="model" 
+                        value={m.id} 
+                        checked={selectedModel === m.id}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 bg-emerald-100 border-emerald-300"
+                      />
+                      <span className="text-xs font-medium text-emerald-900">{m.name}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            <section className="bg-white rounded-[2rem] p-8 shadow-xl shadow-emerald-900/5 border border-emerald-100">
-              <h2 className="flex items-center gap-2 text-xl font-bold mb-6 text-emerald-800">
-                <FileText className="w-6 h-6 text-emerald-500" /> Thông tin bài dạy
-              </h2>
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Môn học</label>
-                  <select 
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full bg-emerald-50 border-2 border-transparent rounded-2xl px-5 py-3 text-sm focus:border-emerald-500 focus:bg-white transition-all outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="">Chọn môn học...</option>
-                    {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-emerald-900/60 uppercase tracking-wider">Khối lớp</label>
-                  <select 
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    className="w-full bg-emerald-50 border-2 border-transparent rounded-2xl px-5 py-3 text-sm focus:border-emerald-500 focus:bg-white transition-all outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="">Chọn khối lớp...</option>
-                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
+          {/* Column 2: Lesson Info */}
+          <section className="bg-white rounded-[1.5rem] p-6 shadow-xl shadow-emerald-900/5 border border-emerald-100 flex flex-col">
+            <h2 className="flex items-center gap-2 text-lg font-bold mb-4 text-emerald-800">
+              <FileText className="w-5 h-5 text-emerald-500" /> Thông tin bài dạy
+            </h2>
+            <div className="space-y-4 flex-grow">
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5 text-emerald-900/60 uppercase tracking-wider">Môn học</label>
+                <select 
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full bg-emerald-50 border-2 border-transparent rounded-xl px-4 py-2 text-xs focus:border-emerald-500 focus:bg-white transition-all outline-none appearance-none cursor-pointer"
+                >
+                  <option value="">Chọn môn học...</option>
+                  {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
-            </section>
-          </aside>
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5 text-emerald-900/60 uppercase tracking-wider">Khối lớp</label>
+                <select 
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className="w-full bg-emerald-50 border-2 border-transparent rounded-xl px-4 py-2 text-xs focus:border-emerald-500 focus:bg-white transition-all outline-none appearance-none cursor-pointer"
+                >
+                  <option value="">Chọn khối lớp...</option>
+                  {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            </div>
+          </section>
 
-          {/* Main Content */}
-          <main className="lg:col-span-8 space-y-6">
-            {/* Upload Area */}
-            <section className="bg-white rounded-[2rem] p-10 shadow-xl shadow-emerald-900/5 border border-emerald-100 text-center">
+          {/* Column 3: Upload Area */}
+          <section className="bg-white rounded-[1.5rem] p-6 shadow-xl shadow-emerald-900/5 border border-emerald-100 text-center flex flex-col">
+            <h2 className="flex items-center gap-2 text-lg font-bold mb-4 text-emerald-800 justify-center">
+              <Upload className="w-5 h-5 text-emerald-500" /> Tài liệu
+            </h2>
+            <div className="flex-grow flex flex-col justify-between gap-4">
               {!file ? (
-                <div className="group border-4 border-dashed border-emerald-100 rounded-[2rem] p-16 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer relative overflow-hidden">
+                <div className="group border-2 border-dashed border-emerald-100 rounded-[1.2rem] p-4 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all cursor-pointer relative overflow-hidden flex-grow flex flex-col items-center justify-center">
                     <input
                       type="file"
                       accept=".docx"
@@ -355,22 +384,21 @@ export default function App() {
                       className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     />
                     <div className="relative z-0">
-                      <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                        <Upload className="w-10 h-10 text-emerald-600" />
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
+                        <Upload className="w-5 h-5 text-emerald-600" />
                       </div>
-                      <p className="text-2xl font-black text-emerald-900">Tải lên tài liệu</p>
-                      <p className="text-emerald-600/60 mt-2 font-medium">Hỗ trợ duy nhất file Word (.docx)</p>
+                      <p className="text-sm font-bold text-emerald-900">Tải lên Word</p>
                     </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                      <FileText className="w-6 h-6 text-emerald-600" />
+                <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                      <FileText className="w-4 h-4 text-emerald-600" />
                     </div>
-                    <div className="text-left">
-                      <p className="font-bold text-emerald-900 truncate max-w-[300px]">{file.name}</p>
-                      <p className="text-sm text-emerald-600/60 font-bold uppercase tracking-tighter">{(file.size / 1024).toFixed(1)} KB</p>
+                    <div className="text-left overflow-hidden">
+                      <p className="font-bold text-[10px] text-emerald-900 truncate max-w-[100px]">{file.name}</p>
+                      <p className="text-[8px] text-emerald-600/60 font-bold uppercase">{(file.size / 1024).toFixed(1)} KB</p>
                     </div>
                   </div>
                   <button 
@@ -382,10 +410,9 @@ export default function App() {
                       setImageMap({});
                       setError('');
                     }}
-                    className="bg-white text-red-500 hover:bg-red-50 p-3 rounded-2xl transition-all shadow-sm active:scale-90"
-                    title="Xóa tài liệu và giải phóng bộ nhớ"
+                    className="flex-shrink-0 bg-white text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all shadow-sm"
                   >
-                    <Trash2 className="w-6 h-6" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               )}
@@ -394,25 +421,29 @@ export default function App() {
                 disabled={isProcessing || !file || !subject || !grade}
                 onClick={handleProcess}
                 className={cn(
-                  "mt-10 w-full py-5 rounded-[1.5rem] font-black text-xl transition-all flex items-center justify-center gap-3 shadow-2xl",
+                  "w-full py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg",
                   isProcessing || !file || !subject || !grade
                     ? "bg-emerald-100 text-emerald-300 cursor-not-allowed shadow-none"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30 hover:-translate-y-1 active:translate-y-0"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/30 hover:-translate-y-0.5 active:translate-y-0"
                 )}
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="w-7 h-7 animate-spin" />
-                    Đang xử lý dữ liệu...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang xử lý...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-6 h-6" />
-                    Bắt đầu tích hợp AI
+                    <Sparkles className="w-4 h-4" />
+                    Bắt đầu
                   </>
                 )}
               </button>
-            </section>
+            </div>
+          </section>
+        </div>
+
+        <div className="space-y-8">
 
             {/* Input Preview Area */}
             <AnimatePresence>
@@ -421,16 +452,16 @@ export default function App() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="bg-white rounded-[2rem] p-10 shadow-xl shadow-emerald-900/5 border border-emerald-100"
+                  className="bg-white rounded-[1.5rem] p-6 shadow-xl shadow-emerald-900/5 border border-emerald-100"
                 >
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-black text-emerald-900 uppercase tracking-tight">Nội dung gốc</h2>
-                    <div className="flex items-center gap-2 text-emerald-600 font-bold bg-emerald-50 px-4 py-2 rounded-xl text-sm">
-                      <FileText className="w-4 h-4" /> 
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-black text-emerald-900 uppercase tracking-tight">Nội dung gốc</h2>
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg text-[10px]">
+                      <FileText className="w-3 h-3" /> 
                       Phát hiện: Định dạng .docx
                     </div>
                   </div>
-                  <div className="relative bg-emerald-50/20 rounded-3xl border border-emerald-100 p-8 overflow-auto max-h-[400px]">
+                  <div className="relative bg-emerald-50/20 rounded-2xl border border-emerald-100 p-6 overflow-auto max-h-[300px]">
                     <div 
                       className="prose prose-emerald max-w-none prose-headings:text-emerald-900 prose-p:text-emerald-800"
                       dangerouslySetInnerHTML={{ __html: renderPreviewHtml(htmlContent) }} 
@@ -461,27 +492,27 @@ export default function App() {
                 <motion.section
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[2rem] p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-100"
+                  className="bg-white rounded-[1.5rem] p-6 shadow-2xl shadow-emerald-900/10 border border-emerald-100"
                 >
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
                     <div>
-                      <h2 className="text-2xl font-black text-emerald-900">Giáo án đã tích hợp</h2>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-emerald-600 font-medium">Nội dung AI được đánh dấu bằng <span className="text-blue-600 font-bold">màu xanh dương</span></p>
-                        <p className="text-xs text-amber-600 font-semibold italic flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Lưu ý: Vui lòng rà soát kỹ để đảm bảo AI không bỏ sót nội dung gốc do giới hạn xử lý.
+                      <h2 className="text-xl font-black text-emerald-900 leading-tight">Giáo án đã tích hợp</h2>
+                      <div className="flex flex-col">
+                        <p className="text-xs text-emerald-600 font-medium">Nội dung AI được đánh dấu bằng <span className="text-blue-600 font-bold">màu xanh dương</span></p>
+                        <p className="text-[10px] text-amber-600 font-bold italic flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Lưu ý: Vui lòng rà soát kỹ nội dung giáo án.
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={handleDownload}
-                      className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
+                      className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
                     >
-                      <Download className="w-5 h-5" /> Tải về
+                      <Download className="w-4 h-4" /> Tải về (.docx)
                     </button>
                   </div>
                   
-                  <div className="relative bg-white rounded-3xl border border-emerald-100 p-8 overflow-auto max-h-[600px] shadow-inner shadow-emerald-900/5">
+                  <div className="relative bg-white rounded-2xl border border-emerald-100 p-6 overflow-auto max-h-[500px] shadow-inner shadow-emerald-900/5">
                     <style>
                       {`
                         .word-preview {
@@ -510,10 +541,9 @@ export default function App() {
                 </motion.section>
               )}
             </AnimatePresence>
-          </main>
-        </div>
+          </div>
 
-        {/* Footer */}
+          {/* Footer */}
         <footer className="mt-16 pb-8 text-center border-t border-emerald-100 pt-8">
           <p className="text-sm font-medium text-emerald-900/40 flex items-center justify-center gap-2">
             Powered by <span className="font-bold text-emerald-600">Gemini</span>
