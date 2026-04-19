@@ -46,9 +46,10 @@ export async function integrateAIIntoLessonPlan(apiKey: string, data: LessonPlan
     4. NỔI BẬT NỘI DUNG MỚI: Chỉ phần nội dung AI được chèn thêm mới nằm trong <span style="color: blue"><b>[Nội dung AI]</b></span> (Màu xanh và in đậm).
     5. GIỮ NGUYÊN NỘI DUNG GỐC: Tuyệt đối không xóa bất kỳ thông tin chuyên môn nào của giáo án gốc.
     
-    QUY TẮC PHẢN HỒI:
+    QUY TẮC PHẢN HỒI (RẤT QUAN TRỌNG):
     - Trả về duy nhất mã HTML hoàn chỉnh, không có văn bản giải thích.
-    - Tuyệt đối không cắt xén hoặc tóm tắt nội dung gốc.
+    - TUYỆT ĐỐI KHÔNG ĐƯỢC LƯỢC BỎ, TÓM TẮT HAY CẮT XÉN BẤT KỲ NỘI DUNG NÀO CỦA FILE GỐC. 
+    - Bạn phải giữ nguyên 100% nội dung bài dạy hiện có, chỉ được phép CHÈN THÊM các mục AI vào vị trí phù hợp.
   `;
 
   const response = await ai.models.generateContent({
